@@ -21,6 +21,7 @@ class Board:
         self.rook = [False, False, False, False]
         self.emptysquare = [False, False, False, False, False, False, False, False, False, False]
         self.enpassant = np.zeros((8, 8), dtype=int)
+        self.fiftymove = 0
         # pawn setup
         for i in range(8):
             self.state[1, i] = 0b1001
@@ -70,7 +71,9 @@ class Board:
     def legal_list(self, row, col, norecurse):
         knight = False
         moves = []
-        if self.state[row, col] & 0b0111 == 0b0010: #rook
+        if self.fiftymove == 50:
+            identity = []
+        elif self.state[row, col] & 0b0111 == 0b0010: #rook
             identity = [(1, 0), (-1, 0), (0, 1), (0, -1)]
         elif self.state[row, col] & 0b0111 == 0b0100: #bishop
             identity = [(1, 1), (1, -1), (-1, 1), (-1, -1)]
@@ -104,9 +107,9 @@ class Board:
                 identity = [(-1, 0)]
                 if self.state[row-1, col] != 0:
                     identity = []
-            if self.state[row-1, col-1] != 0 or self.enpassant[row-1, col-1] == 1:
+            if self.state[row-1, col-1] != 0 or self.enpassant[row-1, col-1] == 2:
                 identity.append((-1, -1))
-            if col+1 < 8 and (self.state[row-1, col+1] != 0 or self.enpassant[row-1, col+1]):
+            if col+1 < 8 and (self.state[row-1, col+1] != 0 or self.enpassant[row-1, col+1] == 2):
                 identity.append((-1, 1))
             knight = True
         elif self.state[row, col] == 0b1001: #black pawn
@@ -213,7 +216,6 @@ class Board:
             square = (info2["row"], info2["column"])
             moves = self.legal_list(piece[0], piece[1], False)
             if square in moves and (self.state[piece] >= 9 and self.turn % 2 == 1 or self.state[piece] < 9 and self.turn % 2 == 0):
-
                 if (info1["row"] + info1["column"]) % 2 == 0:
                     self.movestore[1].config(bg="#FFBEB0", image=self.Boarddict["99"])
                 else:
@@ -231,6 +233,12 @@ class Board:
                 if self.state[piece] == 0b1001 and self.state[square] == 0 and (abs(piece[0] - square[0]), abs(piece[1] - square[1])) == (1, 1):
                     self.buttonrayclone[square[0]-1, square[1]].config(image=self.Boarddict["99"])
                     self.state[square[0]-1, square[1]] = 0
+                if self.state[piece] & 0b0111 != 0b0001 or self.state[square] == 0:
+                    self.fiftymove += 1
+                    if self.fiftymove == 50:
+                        print("50 move rule! Draw")
+                else:
+                    self.fiftymove = 0
                 self.state[square] = self.state[piece]
                 self.state[piece] = 0
                 self.turn += 1
@@ -242,45 +250,19 @@ class Board:
                     self.blacking[0] = square[0]
                     self.blacking[1] = square[1]
                     self.kingmove[0] = True
-                self.castle(piece)
-                if self.state[square] == 0b0110 and abs(piece[1]-square[1]) == 2 and square == (7, 2):
-                    self.buttonrayclone[7, 0].config(bg="#FFBEB0", image=self.Boarddict["70"])
-                    self.buttonrayclone[7, 3].config(bg="#A64A36", image=self.Boarddict["99"])
-                    self.buttonrayclone[7, 0].grid(row=7, column=3)
-                    self.buttonrayclone[7, 3].grid(row=7, column=0)
-                    self.state[7, 3] = 0b0010
-                    self.state[7, 0] = 0b0000
-                if self.state[square] == 0b0110 and abs(piece[1]-square[1]) == 2 and square == (7, 6):
-                    self.buttonrayclone[7, 7].config(bg="#FFBEB0", image=self.Boarddict["70"])
-                    self.buttonrayclone[7, 5].config(bg="#FFBEB0", image=self.Boarddict["99"])
-                    self.buttonrayclone[7, 7].grid(row=7, column=5)
-                    self.buttonrayclone[7, 5].grid(row=7, column=7)
-                    self.state[7, 5] = 0b0010
-                    self.state[7, 7] = 0b0000
-                if self.state[square] == 0b1110 and abs(piece[1]-square[1]) == 2 and square == (0, 2):
-                    self.buttonrayclone[0, 0].config(bg="#A64A36", image=self.Boarddict["00"])
-                    self.buttonrayclone[0, 3].config(bg="#FFBEB0", image=self.Boarddict["99"])
-                    self.buttonrayclone[0, 0].grid(row=0, column=3)
-                    self.buttonrayclone[0, 3].grid(row=0, column=0)
-                    self.state[0, 3] = 0b1010
-                    self.state[0, 0] = 0b0000
-                if self.state[square] == 0b1110 and abs(piece[1]-square[1]) == 2 and square == (0, 6):
-                    self.buttonrayclone[0, 7].config(bg="#A64A36", image=self.Boarddict["00"])
-                    self.buttonrayclone[0, 5].config(bg="#A64A36", image=self.Boarddict["99"])
-                    self.buttonrayclone[0, 7].grid(row=0, column=5)
-                    self.buttonrayclone[0, 5].grid(row=0, column=7)
-                    self.state[0, 5] = 0b1010
-                    self.state[0, 7] = 0b0000
+                self.castle(piece, square)
                 for i in range(8):
                     self.enpassant[2, i] = 0
                     self.enpassant[5, i] = 0
                 if self.state[square] & 0b0111 == 0b0001 and (piece[0] == 1 or piece[0] == 6):
                     if piece[0] == 1 and self.state[square] == 0b1001:
-                        self.enpassant[piece[0]+1, piece[1]] = 1
+                        self.enpassant[piece[0]+1, piece[1]] = 2
                     if piece[0] == 6 and self.state[square] == 0b0001:
                         self.enpassant[piece[0]-1, piece[1]] = 1
-                if self.checkmate():
-                    print("Checkmate!")
+                x = self.checkmate()
+                if x is not None:
+                    print(x)
+
                 store = self.buttonrayclone[piece]
                 self.buttonrayclone[piece] = self.buttonrayclone[square]
                 self.buttonrayclone[square] = store
@@ -288,7 +270,7 @@ class Board:
                     self.promote(square)
             self.movestore.clear()
 
-    def castle(self, piece):
+    def castle(self, piece, square):
         if self.state[piece] == 0b0010 and piece == (7, 0):
             self.rook[2] = True
         if self.state[piece] == 0b0010 and piece == (7, 7):
@@ -337,19 +319,54 @@ class Board:
             self.emptysquare[9] = False
         else:
             self.emptysquare[9] = True
+        if self.state[square] == 0b0110 and abs(piece[1] - square[1]) == 2 and square == (7, 2):
+            self.buttonrayclone[7, 0].config(bg="#FFBEB0", image=self.Boarddict["70"])
+            self.buttonrayclone[7, 3].config(bg="#A64A36", image=self.Boarddict["99"])
+            self.buttonrayclone[7, 0].grid(row=7, column=3)
+            self.buttonrayclone[7, 3].grid(row=7, column=0)
+            self.state[7, 3] = 0b0010
+            self.state[7, 0] = 0b0000
+        if self.state[square] == 0b0110 and abs(piece[1] - square[1]) == 2 and square == (7, 6):
+            self.buttonrayclone[7, 7].config(bg="#FFBEB0", image=self.Boarddict["70"])
+            self.buttonrayclone[7, 5].config(bg="#FFBEB0", image=self.Boarddict["99"])
+            self.buttonrayclone[7, 7].grid(row=7, column=5)
+            self.buttonrayclone[7, 5].grid(row=7, column=7)
+            self.state[7, 5] = 0b0010
+            self.state[7, 7] = 0b0000
+        if self.state[square] == 0b1110 and abs(piece[1] - square[1]) == 2 and square == (0, 2):
+            self.buttonrayclone[0, 0].config(bg="#A64A36", image=self.Boarddict["00"])
+            self.buttonrayclone[0, 3].config(bg="#FFBEB0", image=self.Boarddict["99"])
+            self.buttonrayclone[0, 0].grid(row=0, column=3)
+            self.buttonrayclone[0, 3].grid(row=0, column=0)
+            self.state[0, 3] = 0b1010
+            self.state[0, 0] = 0b0000
+        if self.state[square] == 0b1110 and abs(piece[1] - square[1]) == 2 and square == (0, 6):
+            self.buttonrayclone[0, 7].config(bg="#A64A36", image=self.Boarddict["00"])
+            self.buttonrayclone[0, 5].config(bg="#A64A36", image=self.Boarddict["99"])
+            self.buttonrayclone[0, 7].grid(row=0, column=5)
+            self.buttonrayclone[0, 5].grid(row=0, column=7)
+            self.state[0, 5] = 0b1010
+            self.state[0, 7] = 0b0000
 
     def checkmate(self):
-        if self.turn%2 == 0:
-            kingsquare = self.whiteking
+        if self.turn % 2 == 0:
+            n = 0
+            m = 7
         else:
-            kingsquare = self.blacking
+            n = 8
+            m = 15
         for i in range(8):
             for j in range(8):
-                if (self.state[i, j] ^ self.state[kingsquare[0], kingsquare[1]]) >> 3 == 1 and self.state[i, j] != 0:
+                if n < self.state[i, j] < m and self.state[i, j] != 0:
                     moves = self.legal_list(i, j, False)
                     if moves != []:
-                        return False
-        return True
+                        return
+        if self.in_check(self.whiteking):
+            return "Black wins"
+        elif self.in_check(self.blacking):
+            return "White wins"
+        else:
+            return "Stalemate"
 
     def promote(self, square):
         if square[0] == 0:
@@ -389,4 +406,5 @@ class Board:
 
 
 game = Board()
+
 
