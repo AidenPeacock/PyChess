@@ -2,12 +2,13 @@ import numpy as np
 import tkinter as tk
 from functools import partial
 
+
 class Board:
     def __init__(self):
         # flip MSB for white = 0 black = 1
         # pawn = 0b001, rook = 0b010, knight = 0b011, bishop = 0b100, queen = 0b101, king = 0b110, 0 = empty square
         self.state = np.zeros((8, 8))
-        self.buttonray = np.zeros((8,8), dtype=object)
+        self.buttonray = np.zeros((8, 8), dtype=object)
         self.buttonrayclone = np.zeros((8, 8), dtype=object)
         self.state = self.state.astype(int)
         self.turn = 0
@@ -22,6 +23,9 @@ class Board:
         self.emptysquare = [False, False, False, False, False, False, False, False, False, False]
         self.enpassant = np.zeros((8, 8), dtype=int)
         self.fiftymove = 0
+        self.freemove = [0]
+        self.threefold = False
+        self.boardstatehistory = [np.zeros((8, 8), dtype=int)]
         # pawn setup
         for i in range(8):
             self.state[1, i] = 0b1001
@@ -36,7 +40,7 @@ class Board:
         self.state[0, 5] = 0b1100
         self.state[0, 6] = 0b1011
         self.state[0, 7] = 0b1010
-        #white pieces
+        # white pieces
         self.state[7, 0] = 0b0010
         self.state[7, 1] = 0b0011
         self.state[7, 2] = 0b0100
@@ -45,12 +49,13 @@ class Board:
         self.state[7, 5] = 0b0100
         self.state[7, 6] = 0b0011
         self.state[7, 7] = 0b0010
-
+        for i in range(8):
+            for j in range(8):
+                self.boardstatehistory[0][i, j] = self.state[i, j]
         win = tk.Tk()
         self.Button_ID = []
         self.Boarddict = {}
         self.Boarddict["99"] = tk.PhotoImage(file=r"0.png")
-
         for i in range(8):
             for j in range(8):
                 if (i + j) % 2 == 0:
@@ -60,7 +65,7 @@ class Board:
                 strinky = ("{}{}".format(i, j))
                 self.Boarddict[strinky] = tk.PhotoImage(file=r"{}.png".format(self.state[i, j]))
                 win.B = tk.Button(bg=colour, activebackground="lawn green", image=self.Boarddict[strinky],
-                                   height=60, width=60, command=partial(self.move, (i, j)))
+                                  height=60, width=60, command=partial(self.move, (i, j)))
                 win.B.grid(row=i, column=j)
                 self.Button_ID.append(win.B)
                 self.buttonray[i, j] = win.B
@@ -71,48 +76,50 @@ class Board:
     def legal_list(self, row, col, norecurse):
         knight = False
         moves = []
-        if self.fiftymove == 50:
+        if self.fiftymove == 50 or self.threefold == True:
             identity = []
-        elif self.state[row, col] & 0b0111 == 0b0010: #rook
+        elif self.state[row, col] & 0b0111 == 0b0010:  # rook
             identity = [(1, 0), (-1, 0), (0, 1), (0, -1)]
-        elif self.state[row, col] & 0b0111 == 0b0100: #bishop
+        elif self.state[row, col] & 0b0111 == 0b0100:  # bishop
             identity = [(1, 1), (1, -1), (-1, 1), (-1, -1)]
-        elif self.state[row, col] & 0b0111 == 0b0101: #queen
+        elif self.state[row, col] & 0b0111 == 0b0101:  # queen
             identity = [(1, 1), (1, -1), (-1, 1), (-1, -1), (1, 0), (-1, 0), (0, 1), (0, -1)]
-        elif self.state[row, col] & 0b0111 == 0b0011: #knight
+        elif self.state[row, col] & 0b0111 == 0b0011:  # knight
             knight = True
             identity = [(2, 1), (2, -1), (1, 2), (1, -2), (-2, 1), (-1, 2), (-1, -2), (-2, -1)]
-        elif self.state[row, col] == 0b0110: #Whiteking
+        elif self.state[row, col] == 0b0110:  # Whiteking
             knight = True
             identity = [(1, 1), (1, 0), (0, 1), (1, -1), (-1, 1), (-1, 0), (0, -1), (-1, -1)]
-            if not self.kingmove[1] and not self.rook[2] and self.emptysquare[5] and self.emptysquare[6] and self.emptysquare[7]:
+            if not self.kingmove[1] and not self.rook[2] and self.emptysquare[5] and self.emptysquare[6] and \
+                    self.emptysquare[7]:
                 identity.append((0, -2))
             if not self.kingmove[1] and not self.rook[3] and self.emptysquare[8] and self.emptysquare[9]:
                 identity.append((0, 2))
-        elif self.state[row, col] == 0b1110: #Blackking
+        elif self.state[row, col] == 0b1110:  # Blackking
             knight = True
             identity = [(1, 1), (1, 0), (0, 1), (1, -1), (-1, 1), (-1, 0), (0, -1), (-1, -1)]
-            if not self.kingmove[0] and not self.rook[0] and self.emptysquare[0] and self.emptysquare[1] and self.emptysquare[2]:
+            if not self.kingmove[0] and not self.rook[0] and self.emptysquare[0] and self.emptysquare[1] and \
+                    self.emptysquare[2]:
                 identity.append((0, -2))
             if not self.kingmove[0] and not self.rook[1] and self.emptysquare[3] and self.emptysquare[4]:
                 identity.append((0, 2))
-        elif self.state[row, col] == 0b0001: #white pawn
+        elif self.state[row, col] == 0b0001:  # white pawn
             if row == 6:
                 identity = [(-1, 0), (-2, 0)]
-                if self.state[row-2, col] != 0:
+                if self.state[row - 2, col] != 0:
                     identity = [(-1, 0)]
-                elif self.state[(row-1, col)]:
+                elif self.state[(row - 1, col)]:
                     identity = []
             else:
                 identity = [(-1, 0)]
-                if self.state[row-1, col] != 0:
+                if self.state[row - 1, col] != 0:
                     identity = []
-            if self.state[row-1, col-1] != 0 or self.enpassant[row-1, col-1] == 2:
+            if self.state[row - 1, col - 1] != 0 or self.enpassant[row - 1, col - 1] == 2:
                 identity.append((-1, -1))
-            if col+1 < 8 and (self.state[row-1, col+1] != 0 or self.enpassant[row-1, col+1] == 2):
+            if col + 1 < 8 and (self.state[row - 1, col + 1] != 0 or self.enpassant[row - 1, col + 1] == 2):
                 identity.append((-1, 1))
             knight = True
-        elif self.state[row, col] == 0b1001: #black pawn
+        elif self.state[row, col] == 0b1001:  # black pawn
             if row == 1:
                 identity = [(1, 0), (2, 0)]
                 if self.state[row + 2, col] != 0:
@@ -121,11 +128,12 @@ class Board:
                     identity = []
             else:
                 identity = [(1, 0)]
-                if row+1 < 8 and self.state[row+1, col] != 0:
+                if row + 1 < 8 and self.state[row + 1, col] != 0:
                     identity = []
-            if row+1 < 8 and (self.state[row+1, col-1] != 0 or self.enpassant[row+1, col-1] == 1):
+            if row + 1 < 8 and (self.state[row + 1, col - 1] != 0 or self.enpassant[row + 1, col - 1] == 1):
                 identity.append((1, -1))
-            if row+1 < 8 and col+1 < 8 and (self.state[row+1, col+1] != 0 or self.enpassant[row+1, col+1] == 1):
+            if row + 1 < 8 and col + 1 < 8 and (
+                    self.state[row + 1, col + 1] != 0 or self.enpassant[row + 1, col + 1] == 1):
                 identity.append((1, 1))
             knight = True
         else:
@@ -136,12 +144,12 @@ class Board:
                 m = identity[i][1]
                 check = True
                 while check:
-                    if row+n > 7 or col+m > 7 or row+n < 0 or col+m < 0:
+                    if row + n > 7 or col + m > 7 or row + n < 0 or col + m < 0:
                         check = False
-                    elif self.state[row+n,col+m] == 0:
-                        moves.append((row+n, col+m))
-                    elif (self.state[row+n,col+m] ^ self.state[row, col]) >> 3 == 1:
-                        moves.append((row+n, col+m))
+                    elif self.state[row + n, col + m] == 0:
+                        moves.append((row + n, col + m))
+                    elif (self.state[row + n, col + m] ^ self.state[row, col]) >> 3 == 1:
+                        moves.append((row + n, col + m))
                         check = False
                     else:
                         check = False
@@ -158,7 +166,7 @@ class Board:
                     if row + n > 7 or col + m > 7 or row + n < 0 or col + m < 0:
                         check = False
                     elif self.state[row + n, col + m] == 0:
-                        self.dummymove((row, col), (row+n, col+m), False)
+                        self.dummymove((row, col), (row + n, col + m), False)
                         if not self.in_check():
                             moves.append((row + n, col + m))
                         self.dummymove((row, col), (row + n, col + m), True)
@@ -178,14 +186,14 @@ class Board:
 
     def in_check(self, square=(9, 9)):
         if square == (9, 9):
-            if self.turn%2 == 0:
+            if self.turn % 2 == 0:
                 kingsquare = self.whiteking
                 colorsquare = self.whiteking
             else:
                 kingsquare = self.blacking
                 colorsquare = self.blacking
         else:
-            if self.turn%2 ==0:
+            if self.turn % 2 == 0:
                 colorsquare = self.whiteking
             else:
                 colorsquare = self.blacking
@@ -204,8 +212,6 @@ class Board:
             self.cflag = 0
             return False
 
-
-
     def move(self, c):
         bname = self.buttonray[c]
         self.movestore.append(bname)
@@ -215,7 +221,8 @@ class Board:
             piece = (info1["row"], info1["column"])
             square = (info2["row"], info2["column"])
             moves = self.legal_list(piece[0], piece[1], False)
-            if square in moves and (self.state[piece] >= 9 and self.turn % 2 == 1 or self.state[piece] < 9 and self.turn % 2 == 0):
+            if square in moves and (
+                    self.state[piece] >= 9 and self.turn % 2 == 1 or self.state[piece] < 9 and self.turn % 2 == 0):
                 if (info1["row"] + info1["column"]) % 2 == 0:
                     self.movestore[1].config(bg="#FFBEB0", image=self.Boarddict["99"])
                 else:
@@ -227,12 +234,14 @@ class Board:
                     self.movestore[0].config(bg="#A64A36")
                 self.movestore[0].grid(row=info2["row"], column=info2["column"])
                 self.movestore[1].grid(row=info1["row"], column=info1["column"])
-                if self.state[piece] == 0b0001 and self.state[square] == 0 and (abs(piece[0] - square[0]), abs(piece[1] - square[1])) == (1, 1):
-                    self.buttonrayclone[square[0]+1, square[1]].config(image=self.Boarddict["99"])
-                    self.state[square[0]+1, square[1]] = 0
-                if self.state[piece] == 0b1001 and self.state[square] == 0 and (abs(piece[0] - square[0]), abs(piece[1] - square[1])) == (1, 1):
-                    self.buttonrayclone[square[0]-1, square[1]].config(image=self.Boarddict["99"])
-                    self.state[square[0]-1, square[1]] = 0
+                if self.state[piece] == 0b0001 and self.state[square] == 0 and (
+                abs(piece[0] - square[0]), abs(piece[1] - square[1])) == (1, 1):
+                    self.buttonrayclone[square[0] + 1, square[1]].config(image=self.Boarddict["99"])
+                    self.state[square[0] + 1, square[1]] = 0
+                if self.state[piece] == 0b1001 and self.state[square] == 0 and (
+                abs(piece[0] - square[0]), abs(piece[1] - square[1])) == (1, 1):
+                    self.buttonrayclone[square[0] - 1, square[1]].config(image=self.Boarddict["99"])
+                    self.state[square[0] - 1, square[1]] = 0
                 if self.state[piece] & 0b0111 != 0b0001 or self.state[square] == 0:
                     self.fiftymove += 1
                     if self.fiftymove == 50:
@@ -242,6 +251,21 @@ class Board:
                 self.state[square] = self.state[piece]
                 self.state[piece] = 0
                 self.turn += 1
+
+                for i in range(len(self.boardstatehistory)):
+                    comparison = self.state == self.boardstatehistory[i]
+                    if comparison.all():
+                        self.freemove[i] += 1
+                    if self.freemove[i] == 2:
+                        self.threefold = True
+                if self.threefold:
+                    print("Threefold repetition, Draw!")
+                const = np.zeros((8, 8), dtype=int)
+                for i in range(8):
+                    for j in range(8):
+                        const[i, j] = self.state[i, j]
+                self.boardstatehistory.append(const)
+                self.freemove.append(0)
                 if piece[0] == self.whiteking[0] and piece[1] == self.whiteking[1]:
                     self.whiteking[0] = square[0]
                     self.whiteking[1] = square[1]
@@ -256,9 +280,9 @@ class Board:
                     self.enpassant[5, i] = 0
                 if self.state[square] & 0b0111 == 0b0001 and (piece[0] == 1 or piece[0] == 6):
                     if piece[0] == 1 and self.state[square] == 0b1001:
-                        self.enpassant[piece[0]+1, piece[1]] = 2
+                        self.enpassant[piece[0] + 1, piece[1]] = 2
                     if piece[0] == 6 and self.state[square] == 0b0001:
-                        self.enpassant[piece[0]-1, piece[1]] = 1
+                        self.enpassant[piece[0] - 1, piece[1]] = 1
                 x = self.checkmate()
                 if x is not None:
                     print(x)
@@ -365,7 +389,7 @@ class Board:
             return "Black wins"
         elif self.in_check(self.blacking):
             return "White wins"
-        else:
+        elif not self.threefold and not self.fiftymove:
             return "Stalemate"
 
     def promote(self, square):
@@ -403,6 +427,10 @@ class Board:
             if square[0] == self.blacking[0] and square[1] == self.blacking[1]:
                 self.blacking[0] = piece[0]
                 self.blacking[1] = piece[1]
+
+
+game = Board()
+
 
 
 game = Board()
