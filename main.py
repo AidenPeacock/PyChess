@@ -4,32 +4,82 @@ from functools import partial
 
 
 class Board:
-    def __init__(self):
+    def __init__(self, fen="r1bk3r/p2pBpNp/n4n2/1p1NP2P/6P1/3P4/P1P1K3/q5b1"):
         # flip MSB for white = 0 black = 1
         # pawn = 0b001, rook = 0b010, knight = 0b011, bishop = 0b100, queen = 0b101, king = 0b110, 0 = empty square
         # boardstate, 8 x 8 numpy array representing the board internally
-        self.state = np.zeros((8, 8))
+        self.state = np.zeros((8, 8), dtype=int)
         # button array for my move method to call
         self.buttonray = np.zeros((8, 8), dtype=object)
         # button array that updates with moves made for altering visual elements of the board that are not being moved 
         self.buttonrayclone = np.zeros((8, 8), dtype=object)
-        self.state = self.state.astype(int)
+        # keeps track of turn (ply)
         self.turn = 0
+        # inital king positions
         self.whiteking = [7, 4]
         self.blacking = [0, 4]
         self.cflag = 0
         self.movestore = []
         self.takenpiece = None
         self.latch = 0
+        # 3 lists representing conditions for castling
         self.kingmove = [False, False]
         self.rook = [False, False, False, False]
         self.emptysquare = [False, False, False, False, False, False, False, False, False, False]
+        # en passant rule track
         self.enpassant = np.zeros((8, 8), dtype=int)
         self.fiftymove = 0
+        # array keeping track of how many times we reach each position in a game
         self.freemove = [0]
         self.threefold = False
         self.boardstatehistory = [np.zeros((8, 8), dtype=int)]
+
+        col = 0
+        row = 0
+        for i in fen:
+            if i == "p":
+                self.state[row, col] = 0b1001
+                col += 1
+            elif i == "r":
+                self.state[row, col] = 0b1010
+                col += 1
+            elif i == "n":
+                self.state[row, col] = 0b1011
+                col += 1
+            elif i == "b":
+                self.state[row, col] = 0b1100
+                col += 1
+            elif i == "q":
+                self.state[row, col] = 0b1101
+                col += 1
+            elif i == "k":
+                self.state[row, col] = 0b1110
+                col += 1
+            elif i == "P":
+                self.state[row, col] = 0b0001
+                col += 1
+            elif i == "R":
+                self.state[row, col] = 0b0010
+                col += 1
+            elif i == "N":
+                self.state[row, col] = 0b0011
+                col += 1
+            elif i == "B":
+                self.state[row, col] = 0b0100
+                col += 1
+            elif i == "Q":
+                self.state[row, col] = 0b0101
+                col += 1
+            elif i == "K":
+                self.state[row, col] = 0b0110
+                col += 1
+            elif i == "/":
+                row += 1
+                col = 0
+            elif i == "1" or "2" or "3" or "4" or "5" or "6" or "7" or "8":
+                col += int(i)
         # pawn setup
+        """"
         for i in range(8):
             self.state[1, i] = 0b1001
             self.state[6, i] = 0b0001
@@ -52,6 +102,7 @@ class Board:
         self.state[7, 5] = 0b0100
         self.state[7, 6] = 0b0011
         self.state[7, 7] = 0b0010
+        """
         for i in range(8):
             for j in range(8):
                 self.boardstatehistory[0][i, j] = self.state[i, j]
@@ -79,7 +130,7 @@ class Board:
     def legal_list(self, row, col, norecurse):
         knight = False
         moves = []
-        if self.fiftymove == 50 or self.threefold == True:
+        if self.fiftymove == 100 or self.threefold == True:
             identity = []
         elif self.state[row, col] & 0b0111 == 0b0010:  # rook
             identity = [(1, 0), (-1, 0), (0, 1), (0, -1)]
@@ -247,7 +298,7 @@ class Board:
                     self.state[square[0] - 1, square[1]] = 0
                 if self.state[piece] & 0b0111 != 0b0001 or self.state[square] == 0:
                     self.fiftymove += 1
-                    if self.fiftymove == 50:
+                    if self.fiftymove == 100:
                         print("50 move rule! Draw")
                 else:
                     self.fiftymove = 0
