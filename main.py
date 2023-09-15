@@ -7,8 +7,11 @@ class Board:
     def __init__(self):
         # flip MSB for white = 0 black = 1
         # pawn = 0b001, rook = 0b010, knight = 0b011, bishop = 0b100, queen = 0b101, king = 0b110, 0 = empty square
+        # boardstate, 8 x 8 numpy array representing the board internally
         self.state = np.zeros((8, 8))
+        # button array for my move method to call
         self.buttonray = np.zeros((8, 8), dtype=object)
+        # button array that updates with moves made for altering visual elements of the board that are not being moved 
         self.buttonrayclone = np.zeros((8, 8), dtype=object)
         self.state = self.state.astype(int)
         self.turn = 0
@@ -427,10 +430,6 @@ class Board:
             if square[0] == self.blacking[0] and square[1] == self.blacking[1]:
                 self.blacking[0] = piece[0]
                 self.blacking[1] = piece[1]
-
-
-game = Board()
-
 
 
 game = Board()
