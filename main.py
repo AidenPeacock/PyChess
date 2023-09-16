@@ -34,15 +34,11 @@ class Board:
         self.threefold = False
         self.boardstatehistory = [np.zeros((8, 8), dtype=int)]
         self.stringtoarr = { "a" : 0, "b" : 1, "c" : 2, "d" : 3, "e" : 4, "f" : 5, "g" : 6, "h" : 7} 
-<<<<<<< HEAD
         self.arrtostring = {v: k for k, v in self.stringtoarr.items()}
         self.whitebishop = True
         self.blackbishop = True
         self.whiteknight = True
         self.blacknight = True
-=======
-
->>>>>>> 5633ae7d987b05a2d910703e6e8998e49732d115
         col = 0
         row = 0
         spaceswitch = 0
@@ -319,12 +315,9 @@ class Board:
                 self.state[square] = self.state[piece]
                 self.state[piece] = 0
                 self.turn += 1
-<<<<<<< HEAD
                 print(self.state)
                 if self.insufficient():
                     print("Insufficient material, Draw!")
-=======
->>>>>>> 5633ae7d987b05a2d910703e6e8998e49732d115
                 for i in range(len(self.boardstatehistory)):
                     comparison = self.state == self.boardstatehistory[i]
                     if comparison.all():
