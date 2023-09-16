@@ -2,9 +2,10 @@ import numpy as np
 import tkinter as tk
 from functools import partial
 
+#TODO underpromotion + graphic, graphic for game end, list of all legal moves in chess notation
 
 class Board:
-    def __init__(self, fen="8/8/8/4p1K1/2k1P3/8/8/8 b - - 0 1"):
+    def __init__(self, fen="rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1"):
         # flip MSB for white = 0 black = 1
         # pawn = 0b001, rook = 0b010, knight = 0b011, bishop = 0b100, queen = 0b101, king = 0b110, 0 = empty square
         # boardstate, 8 x 8 numpy array representing the board internally
@@ -315,7 +316,6 @@ class Board:
                 self.state[square] = self.state[piece]
                 self.state[piece] = 0
                 self.turn += 1
-                print(self.state)
                 if self.insufficient():
                     print("Insufficient material, Draw!")
                 for i in range(len(self.boardstatehistory)):
