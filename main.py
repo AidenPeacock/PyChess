@@ -4,7 +4,8 @@ from functools import partial
 
 
 class Board:
-    def __init__(self, fen="8/8/8/4p1K1/2k1P3/8/8/8 b - - 0 1"):
+
+    def __init__(self, fen="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"):
         # flip MSB for white = 0 black = 1
         # pawn = 0b001, rook = 0b010, knight = 0b011, bishop = 0b100, queen = 0b101, king = 0b110, 0 = empty square
         # boardstate, 8 x 8 numpy array representing the board internally
