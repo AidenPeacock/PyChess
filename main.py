@@ -4,7 +4,7 @@ from functools import partial
 
 
 class Board:
-    def __init__(self, fen="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"):
+    def __init__(self, fen="8/8/8/4p1K1/2k1P3/8/8/8 b - - 0 1"):
         # flip MSB for white = 0 black = 1
         # pawn = 0b001, rook = 0b010, knight = 0b011, bishop = 0b100, queen = 0b101, king = 0b110, 0 = empty square
         # boardstate, 8 x 8 numpy array representing the board internally
@@ -33,76 +33,82 @@ class Board:
         self.freemove = [0]
         self.threefold = False
         self.boardstatehistory = [np.zeros((8, 8), dtype=int)]
+        self.stringtoarr = { "a" : 0, "b" : 1, "c" : 2, "d" : 3, "e" : 4, "f" : 5, "g" : 6, "h" : 7} 
 
         col = 0
         row = 0
+        spaceswitch = 0
+        iterate = 0
+        whiteturn = False
+        blackturn = False
         for i in fen:
-            if i == "p":
-                self.state[row, col] = 0b1001
-                col += 1
-            elif i == "r":
-                self.state[row, col] = 0b1010
-                col += 1
-            elif i == "n":
-                self.state[row, col] = 0b1011
-                col += 1
-            elif i == "b":
-                self.state[row, col] = 0b1100
-                col += 1
-            elif i == "q":
-                self.state[row, col] = 0b1101
-                col += 1
-            elif i == "k":
-                self.state[row, col] = 0b1110
-                col += 1
-            elif i == "P":
-                self.state[row, col] = 0b0001
-                col += 1
-            elif i == "R":
-                self.state[row, col] = 0b0010
-                col += 1
-            elif i == "N":
-                self.state[row, col] = 0b0011
-                col += 1
-            elif i == "B":
-                self.state[row, col] = 0b0100
-                col += 1
-            elif i == "Q":
-                self.state[row, col] = 0b0101
-                col += 1
-            elif i == "K":
-                self.state[row, col] = 0b0110
-                col += 1
-            elif i == "/":
-                row += 1
-                col = 0
-            elif i == "1" or "2" or "3" or "4" or "5" or "6" or "7" or "8":
-                col += int(i)
-        # pawn setup
-        """"
-        for i in range(8):
-            self.state[1, i] = 0b1001
-            self.state[6, i] = 0b0001
-
-        # black pieces
-        self.state[0, 0] = 0b1010
-        self.state[0, 1] = 0b1011
-        self.state[0, 2] = 0b1100
-        self.state[0, 3] = 0b1101
-        self.state[0, 4] = 0b1110
-        self.state[0, 5] = 0b1100
-        self.state[0, 6] = 0b1011
-        self.state[0, 7] = 0b1010
-        # white pieces
-        self.state[7, 0] = 0b0010
-        self.state[7, 1] = 0b0011
-        self.state[7, 2] = 0b0100
-        self.state[7, 3] = 0b0101
-        self.state[7, 4] = 0b0110
-        self.state[7, 5] = 0b0100
-        self.state[7, 6] = 0b0011
-        self.state[7, 7] = 0b0010
-        """
+            iterate += 1
+            if i == " ":
+                spaceswitch += 1
+            if i != " ":
+                if spaceswitch == 0:
+                    if i == "p":
+                        self.state[row, col] = 0b1001
+                        col += 1
+                    elif i == "r":
+                        self.state[row, col] = 0b1010
+                        col += 1
+                    elif i == "n":
+                        self.state[row, col] = 0b1011
+                        col += 1
+                    elif i == "b":
+                        self.state[row, col] = 0b1100
+                        col += 1
+                    elif i == "q":
+                        self.state[row, col] = 0b1101
+                        col += 1
+                    elif i == "k":
+                        self.state[row, col] = 0b1110
+                        self.blacking = [row, col]
+                        col += 1
+                    elif i == "P":
+                        self.state[row, col] = 0b0001
+                        col += 1
+                    elif i == "R":
+                        self.state[row, col] = 0b0010
+                        col += 1
+                    elif i == "N":
+                        self.state[row, col] = 0b0011
+                        col += 1
+                    elif i == "B":
+                        self.state[row, col] = 0b0100
+                        col += 1
+                    elif i == "Q":
+                        self.state[row, col] = 0b0101
+                        col += 1
+                    elif i == "K":
+                        self.state[row, col] = 0b0110
+                        self.whiteking = [row, col]
+                        col += 1
+                    elif i == "/":
+                        row += 1
+                        col = 0
+                    elif i == "1" or i == "2" or i == "3" or i == "4" or i == "5" or i == "6" or i == "7" or i == "8":
+                        col += int(i)
+                if i == "b" and spaceswitch == 1:
+                    blackturn = True
+                if i == "w" and spaceswitch == 1:
+                    whiteturn = True
+                if i == "-" and spaceswitch == 2:
+                    self.kingmove[0] = True
+                    self.kingmove[1] = True
+                if (i == "a" or i == "b" or i =="c" or i =="d" or i == "e" or i == "f" or i =="g" or i == "h") and spaceswitch == 3:
+                    if fen[iterate] == "3":
+                        self.enpassant[5, self.stringtoarr[i]] = 2
+                    if fen[iterate] == "6":
+                        self.enpassant[2, self.stringtoarr[i]] = 2
+                if spaceswitch == 4:
+                    self.fiftymove = int(i)
+                if spaceswitch == 5:
+                    if blackturn:
+                        self.turn = int(i)
+                    if whiteturn:
+                        self.turn = int(i)+1
         for i in range(8):
             for j in range(8):
                 self.boardstatehistory[0][i, j] = self.state[i, j]
@@ -305,7 +311,6 @@ class Board:
                 self.state[square] = self.state[piece]
                 self.state[piece] = 0
                 self.turn += 1
-
                 for i in range(len(self.boardstatehistory)):
                     comparison = self.state == self.boardstatehistory[i]
                     if comparison.all():
@@ -484,5 +489,6 @@ class Board:
 
 
 game = Board()
+
 
 
