@@ -4,8 +4,7 @@ from functools import partial
 
 
 class Board:
-
-    def __init__(self, fen="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"):
+    def __init__(self, fen="8/8/8/4p1K1/2k1P3/8/8/8 b - - 0 1"):
         # flip MSB for white = 0 black = 1
         # pawn = 0b001, rook = 0b010, knight = 0b011, bishop = 0b100, queen = 0b101, king = 0b110, 0 = empty square
         # boardstate, 8 x 8 numpy array representing the board internally
@@ -35,7 +34,11 @@ class Board:
         self.threefold = False
         self.boardstatehistory = [np.zeros((8, 8), dtype=int)]
         self.stringtoarr = { "a" : 0, "b" : 1, "c" : 2, "d" : 3, "e" : 4, "f" : 5, "g" : 6, "h" : 7} 
-
+        self.arrtostring = {v: k for k, v in self.stringtoarr.items()}
+        self.whitebishop = True
+        self.blackbishop = True
+        self.whiteknight = True
+        self.blacknight = True
         col = 0
         row = 0
         spaceswitch = 0
@@ -110,32 +113,6 @@ class Board:
                         self.turn = int(i)
                     if whiteturn:
                         self.turn = int(i)+1
-
-        # pawn setup
-        """"
-        for i in range(8):
-            self.state[1, i] = 0b1001
-            self.state[6, i] = 0b0001
-
-        # black pieces
-        self.state[0, 0] = 0b1010
-        self.state[0, 1] = 0b1011
-        self.state[0, 2] = 0b1100
-        self.state[0, 3] = 0b1101
-        self.state[0, 4] = 0b1110
-        self.state[0, 5] = 0b1100
-        self.state[0, 6] = 0b1011
-        self.state[0, 7] = 0b1010
-        # white pieces
-        self.state[7, 0] = 0b0010
-        self.state[7, 1] = 0b0011
-        self.state[7, 2] = 0b0100
-        self.state[7, 3] = 0b0101
-        self.state[7, 4] = 0b0110
-        self.state[7, 5] = 0b0100
-        self.state[7, 6] = 0b0011
-        self.state[7, 7] = 0b0010
-        """
         for i in range(8):
             for j in range(8):
                 self.boardstatehistory[0][i, j] = self.state[i, j]
@@ -163,7 +140,7 @@ class Board:
     def legal_list(self, row, col, norecurse):
         knight = False
         moves = []
-        if self.fiftymove == 100 or self.threefold == True:
+        if self.fiftymove == 100 or self.threefold == True or self.insufficient():
             identity = []
         elif self.state[row, col] & 0b0111 == 0b0010:  # rook
             identity = [(1, 0), (-1, 0), (0, 1), (0, -1)]
@@ -338,6 +315,9 @@ class Board:
                 self.state[square] = self.state[piece]
                 self.state[piece] = 0
                 self.turn += 1
+                print(self.state)
+                if self.insufficient():
+                    print("Insufficient material, Draw!")
                 for i in range(len(self.boardstatehistory)):
                     comparison = self.state == self.boardstatehistory[i]
                     if comparison.all():
@@ -475,7 +455,7 @@ class Board:
             return "Black wins"
         elif self.in_check(self.blacking):
             return "White wins"
-        elif not self.threefold and not self.fiftymove:
+        elif not self.threefold and not self.fiftymove == 100 and not self.insufficient():
             return "Stalemate"
 
     def promote(self, square):
@@ -485,6 +465,34 @@ class Board:
         if square[0] == 7:
             self.state[7, square[1]] = 0b1101
             self.buttonrayclone[7, square[1]].config(image=self.Boarddict["03"])
+    
+    def insufficient(self):
+        for i in range(8):
+            for j in range(8):
+                if self.state[i ,j] in {0b0001, 0b1001, 0b0010, 0b1010, 0b0101, 0b1101}:
+                    return False
+                if self.state[i ,j] == 0b0100:
+                    self.whitebishop = True
+                else:
+                    self.whitebishop = False
+                if self.state[i ,j] == 0b1100:
+                    self.blackbishop = True
+                else:
+                    self.blackbishop = False
+                if self.state[i, j] == 0b0011:
+                    self.whiteknight = True
+                else:
+                    self.whiteknight = False
+                if self.state[i, j] == 0b1011:
+                    self.blacknight = True
+                else:
+                    self.blacknight = False
+        if self.whitebishop and self.whiteknight:
+            return False
+        elif self.blackbishop and self.blacknight:
+            return False
+        else:
+            return True
 
     def dummymove(self, piece, square, undo):
         if piece == square:
