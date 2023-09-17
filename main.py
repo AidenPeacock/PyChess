@@ -2,7 +2,8 @@ import numpy as np
 import tkinter as tk
 from functools import partial
 
-#TODO underpromotion + graphic, graphic for game end, list of all legal moves in chess notation
+#TODO running the legal_list calculation once per turn and saving it as a global variable
+# underpromotion + graphic, graphic for game end, list of all legal moves in chess notation
 
 class Board:
     def __init__(self, fen="rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1"):
@@ -117,7 +118,7 @@ class Board:
         for i in range(8):
             for j in range(8):
                 self.boardstatehistory[0][i, j] = self.state[i, j]
-        win = tk.Tk()
+        self.win = tk.Tk()
         self.Button_ID = []
         self.Boarddict = {}
         self.Boarddict["99"] = tk.PhotoImage(file=r"0.png")
@@ -129,14 +130,15 @@ class Board:
                     colour = "#A64A36"
                 strinky = ("{}{}".format(i, j))
                 self.Boarddict[strinky] = tk.PhotoImage(file=r"{}.png".format(self.state[i, j]))
-                win.B = tk.Button(bg=colour, activebackground="lawn green", image=self.Boarddict[strinky],
+                self.win.B = tk.Button(bg=colour, activebackground="lawn green", image=self.Boarddict[strinky],
                                   height=60, width=60, command=partial(self.move, (i, j)))
-                win.B.grid(row=i, column=j)
-                self.Button_ID.append(win.B)
-                self.buttonray[i, j] = win.B
-                self.buttonrayclone[i, j] = win.B
+                self.win.B.grid(row=i, column=j)
+                self.Button_ID.append(self.win.B)
+                self.buttonray[i, j] = self.win.B
+                self.buttonrayclone[i, j] = self.win.B
 
-        win.mainloop()
+    def mainloop(self):
+        self.win.mainloop()
 
     def legal_list(self, row, col, norecurse):
         knight = False
@@ -311,6 +313,7 @@ class Board:
                     self.fiftymove += 1
                     if self.fiftymove == 100:
                         print("50 move rule! Draw")
+                        return
                 else:
                     self.fiftymove = 0
                 self.state[square] = self.state[piece]
@@ -318,6 +321,7 @@ class Board:
                 self.turn += 1
                 if self.insufficient():
                     print("Insufficient material, Draw!")
+                    return
                 for i in range(len(self.boardstatehistory)):
                     comparison = self.state == self.boardstatehistory[i]
                     if comparison.all():
@@ -326,6 +330,7 @@ class Board:
                         self.threefold = True
                 if self.threefold:
                     print("Threefold repetition, Draw!")
+                    return
                 const = np.zeros((8, 8), dtype=int)
                 for i in range(8):
                     for j in range(8):
@@ -352,12 +357,16 @@ class Board:
                 x = self.checkmate()
                 if x is not None:
                     print(x)
+                    return
 
                 store = self.buttonrayclone[piece]
                 self.buttonrayclone[piece] = self.buttonrayclone[square]
                 self.buttonrayclone[square] = store
                 if self.state[square] & 0b0111 == 0b0001 and (square[0] == 0 or square[0] == 7):
                     self.promote(square)
+            if self.turn%2 == 1:
+                self.movestore.clear()
+                self.automove()
             self.movestore.clear()
 
     def castle(self, piece, square):
@@ -521,9 +530,20 @@ class Board:
             if square[0] == self.blacking[0] and square[1] == self.blacking[1]:
                 self.blacking[0] = piece[0]
                 self.blacking[1] = piece[1]
+    def automove(self):
+        moves = []
+        for i in range(8):
+            for j in range(8):
+                if self.state[i, j] != 0 and self.state[i, j] > 8:
+                    x = (self.legal_list(i, j, False), (i, j))
+                    if x[0] != []:
+                        moves.append(x)
+        self.buttonrayclone[moves[0][1]].invoke()
+        self.buttonrayclone[moves[0][0][0]].invoke()
 
 
-game = Board()
 
-
+game = Board("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR")
+game.mainloop()
+        
 
