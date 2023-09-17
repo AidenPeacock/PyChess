@@ -1,10 +1,11 @@
 import numpy as np
 import tkinter as tk
 from functools import partial
+import time
 
 #TODO running the legal_list calculation once per turn and saving it as a global variable
 # underpromotion + graphic, graphic for game end, list of all legal moves in chess notation
-
+# to be able to see 2 cpus play eachother, it may be that i split up the class storing the board and the class drawing the board in tkinter
 class Board:
     def __init__(self, fen="rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1"):
         # flip MSB for white = 0 black = 1
@@ -233,15 +234,15 @@ class Board:
                     if row + n > 7 or col + m > 7 or row + n < 0 or col + m < 0:
                         check = False
                     elif self.state[row + n, col + m] == 0:
-                        self.dummymove((row, col), (row + n, col + m), False)
+                        x = self.manualmove((row, col), (row + n, col + m))
                         if not self.in_check():
                             moves.append((row + n, col + m))
-                        self.dummymove((row, col), (row + n, col + m), True)
+                        self.undomanual((row, col), (row + n, col + m), x)
                     elif (self.state[row + n, col + m] ^ self.state[row, col]) >> 3 == 1:
-                        self.dummymove((row, col), (row + n, col + m), False)
+                        x = self.manualmove((row, col), (row + n, col + m))
                         if not self.in_check():
                             moves.append((row + n, col + m))
-                        self.dummymove((row, col), (row + n, col + m), True)
+                        self.undomanual((row, col), (row + n, col + m), x)
                         check = False
                     else:
                         check = False
@@ -367,6 +368,7 @@ class Board:
             if self.turn%2 == 1:
                 self.movestore.clear()
                 self.automove()
+            
             self.movestore.clear()
 
     def castle(self, piece, square):
@@ -530,20 +532,78 @@ class Board:
             if square[0] == self.blacking[0] and square[1] == self.blacking[1]:
                 self.blacking[0] = piece[0]
                 self.blacking[1] = piece[1]
+
+    def manualmove(self, piece, square):
+        x = self.state[square]
+        self.state[square] = self.state[piece]
+        self.state[piece] = 0
+        if piece[0] == self.whiteking[0] and piece[1] == self.whiteking[1]:
+            self.whiteking[0] = square[0]
+            self.whiteking[1] = square[1]
+        if piece[0] == self.blacking[0] and piece[1] == self.blacking[1]:
+            self.blacking[0] = square[0]
+            self.blacking[1] = square[1]
+        return x
+    
+    def undomanual(self, piece, square, x):
+        self.state[piece] = self.state[square]
+        self.state[square] = x
+        if square[0] == self.whiteking[0] and square[1] == self.whiteking[1]:
+            self.whiteking[0] = piece[0]
+            self.whiteking[1] = piece[1]
+        if square[0] == self.blacking[0] and square[1] == self.blacking[1]:
+            self.blacking[0] = piece[0]
+            self.blacking[1] = piece[1]
+
     def automove(self):
         moves = []
         for i in range(8):
             for j in range(8):
-                if self.state[i, j] != 0 and self.state[i, j] > 8:
+                if self.state[i, j] != 0 and (self.state[i, j] > 8 and self.turn%2 == 1 or self.state[i, j] < 8 and self.turn%2 ==0):
                     x = (self.legal_list(i, j, False), (i, j))
                     if x[0] != []:
                         moves.append(x)
-        self.buttonrayclone[moves[0][1]].invoke()
-        self.buttonrayclone[moves[0][0][0]].invoke()
+        count = 0
+        mincount = 999
+        countstore = 999
+        flag = False
+        mateflag = False
+        for k in range(len(moves)):
+                for l in range(len(moves[k][0])):
+                    self.dummymove(moves[k][1], moves[k][0][l], False)
+                    if self.checkmate() == "Black wins":
+                        a = k 
+                        b = l
+                        mateflag = True
+                    self.turn += 1
+                    if self.in_check() and not mateflag:
+                        a = k
+                        b = l
+                        flag = True
+                    self.turn -= 1
+                    if not flag and not mateflag:
+                        for i in range(8):
+                            for j in range(8):
+                                if self.state[i, j] != 0 and self.state[i, j] < 8 and self.state[i, j] != 0b0110:
+                                    count += self.state[i, j]
+                        if k == 0 and l == 0:
+                            countstore = count
+                        if count < mincount:
+                            mincount = count
+                            a = k
+                            b = l
+                    self.dummymove(moves[k][1], moves[k][0][l], True)
+                    count = 0
+        if mincount == countstore and not flag:
+            rng = np.random.default_rng()
+            a = rng.integers(low=0, high=len(moves))
+            b = rng.integers(low=0, high=len(moves[a][0]))
+        self.buttonrayclone[moves[a][1]].invoke()
+        self.buttonrayclone[moves[a][0][b]].invoke()
 
 
+game = Board("8/p7/1p1pNk2/3P1p2/1nPK2p1/1P5r/4R3/8 b - - 1 1")
 
-game = Board("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR")
 game.mainloop()
         
 
