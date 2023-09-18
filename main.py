@@ -7,7 +7,7 @@ import time
 # underpromotion + graphic, graphic for game end, list of all legal moves in chess notation
 # to be able to see 2 cpus play eachother, it may be that i split up the class storing the board and the class drawing the board in tkinter
 class Board:
-    def __init__(self, fen="rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1"):
+    def __init__(self, fen="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"):
         # flip MSB for white = 0 black = 1
         # pawn = 0b001, rook = 0b010, knight = 0b011, bishop = 0b100, queen = 0b101, king = 0b110, 0 = empty square
         # boardstate, 8 x 8 numpy array representing the board internally
@@ -289,6 +289,7 @@ class Board:
             piece = (info1["row"], info1["column"])
             square = (info2["row"], info2["column"])
             moves = self.legal_list(piece[0], piece[1], False)
+            print(self.threefold, self.fiftymove, self.insufficient())
             if square in moves and (
                     self.state[piece] >= 9 and self.turn % 2 == 1 or self.state[piece] < 9 and self.turn % 2 == 0):
                 if (info1["row"] + info1["column"]) % 2 == 0:
@@ -310,7 +311,7 @@ class Board:
                 abs(piece[0] - square[0]), abs(piece[1] - square[1])) == (1, 1):
                     self.buttonrayclone[square[0] - 1, square[1]].config(image=self.Boarddict["99"])
                     self.state[square[0] - 1, square[1]] = 0
-                if self.state[piece] & 0b0111 != 0b0001 or self.state[square] == 0:
+                if self.state[piece] & 0b0111 != 0b0001 and self.state[square] == 0:
                     self.fiftymove += 1
                     if self.fiftymove == 100:
                         print("50 move rule! Draw")
@@ -365,10 +366,9 @@ class Board:
                 self.buttonrayclone[square] = store
                 if self.state[square] & 0b0111 == 0b0001 and (square[0] == 0 or square[0] == 7):
                     self.promote(square)
-            if self.turn%2 == 1:
+            if self.turn%2 == 1 and self.fiftymove != 100 and self.threefold == False and not self.insufficient():
                 self.movestore.clear()
                 self.automove()
-            
             self.movestore.clear()
 
     def castle(self, piece, square):
@@ -602,7 +602,7 @@ class Board:
         self.buttonrayclone[moves[a][0][b]].invoke()
 
 
-game = Board("8/p7/1p1pNk2/3P1p2/1nPK2p1/1P5r/4R3/8 b - - 1 1")
+game = Board()
 
 game.mainloop()
         
