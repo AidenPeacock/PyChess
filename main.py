@@ -1,9 +1,9 @@
 import numpy as np
 import tkinter as tk
 from functools import partial
-import time
 
-#TODO running the legal_list calculation once per turn and saving it as a global variable
+
+# TODO running the legal_list calculation once per turn and saving it as a global variable
 # underpromotion + graphic, graphic for game end, list of all legal moves in chess notation
 # to be able to see 2 cpus play eachother, it may be that i split up the class storing the board and the class drawing the board in tkinter
 class Board:
@@ -14,7 +14,7 @@ class Board:
         self.state = np.zeros((8, 8), dtype=int)
         # button array for my move method to call
         self.buttonray = np.zeros((8, 8), dtype=object)
-        # button array that updates with moves made for altering visual elements of the board that are not being moved 
+        # button array that updates with moves made for altering visual elements of the board that are not being moved
         self.buttonrayclone = np.zeros((8, 8), dtype=object)
         # keeps track of turn (ply)
         self.turn = 0
@@ -36,12 +36,13 @@ class Board:
         self.freemove = [0]
         self.threefold = False
         self.boardstatehistory = [np.zeros((8, 8), dtype=int)]
-        self.stringtoarr = { "a" : 0, "b" : 1, "c" : 2, "d" : 3, "e" : 4, "f" : 5, "g" : 6, "h" : 7} 
+        self.stringtoarr = {"a": 0, "b": 1, "c": 2, "d": 3, "e": 4, "f": 5, "g": 6, "h": 7}
         self.arrtostring = {v: k for k, v in self.stringtoarr.items()}
         self.whitebishop = True
         self.blackbishop = True
         self.whiteknight = True
         self.blacknight = True
+        self.possiblemoves = []
         col = 0
         row = 0
         spaceswitch = 0
@@ -104,7 +105,8 @@ class Board:
                 if i == "-" and spaceswitch == 2:
                     self.kingmove[0] = True
                     self.kingmove[1] = True
-                if (i == "a" or i == "b" or i =="c" or i =="d" or i == "e" or i == "f" or i =="g" or i == "h") and spaceswitch == 3:
+                if (
+                        i == "a" or i == "b" or i == "c" or i == "d" or i == "e" or i == "f" or i == "g" or i == "h") and spaceswitch == 3:
                     if fen[iterate] == "3":
                         self.enpassant[5, self.stringtoarr[i]] = 2
                     if fen[iterate] == "6":
@@ -115,12 +117,11 @@ class Board:
                     if blackturn:
                         self.turn = int(i)
                     if whiteturn:
-                        self.turn = int(i)+1
+                        self.turn = int(i) + 1
         for i in range(8):
             for j in range(8):
                 self.boardstatehistory[0][i, j] = self.state[i, j]
         self.win = tk.Tk()
-        self.Button_ID = []
         self.Boarddict = {}
         self.Boarddict["99"] = tk.PhotoImage(file=r"0.png")
         for i in range(8):
@@ -132,9 +133,8 @@ class Board:
                 strinky = ("{}{}".format(i, j))
                 self.Boarddict[strinky] = tk.PhotoImage(file=r"{}.png".format(self.state[i, j]))
                 self.win.B = tk.Button(bg=colour, activebackground="lawn green", image=self.Boarddict[strinky],
-                                  height=60, width=60, command=partial(self.move, (i, j)))
+                                       height=60, width=60, command=partial(self.move, (i, j)))
                 self.win.B.grid(row=i, column=j)
-                self.Button_ID.append(self.win.B)
                 self.buttonray[i, j] = self.win.B
                 self.buttonrayclone[i, j] = self.win.B
 
@@ -283,13 +283,23 @@ class Board:
     def move(self, c):
         bname = self.buttonray[c]
         self.movestore.append(bname)
+        if len(self.movestore) == 1:
+            info = bname.grid_info()
+            self.possiblemoves = self.legal_list(info["row"], info["column"], False)
+            for i in range(len(self.possiblemoves)):
+                self.buttonrayclone[self.possiblemoves[i]].config(bg="#FFFF00")
         if len(self.movestore) == 2:
+            for i in range(len(self.possiblemoves)):
+                if (self.possiblemoves[i][0]+self.possiblemoves[i][1]) % 2 == 0:
+                    self.buttonrayclone[self.possiblemoves[i]].config(bg="#FFBEB0")
+                else:
+                    self.buttonrayclone[self.possiblemoves[i]].config(bg="#A64A36")
+            self.possiblemoves = []
             info1 = self.movestore[0].grid_info()
             info2 = self.movestore[1].grid_info()
             piece = (info1["row"], info1["column"])
             square = (info2["row"], info2["column"])
             moves = self.legal_list(piece[0], piece[1], False)
-            print(self.threefold, self.fiftymove, self.insufficient())
             if square in moves and (
                     self.state[piece] >= 9 and self.turn % 2 == 1 or self.state[piece] < 9 and self.turn % 2 == 0):
                 if (info1["row"] + info1["column"]) % 2 == 0:
@@ -304,11 +314,11 @@ class Board:
                 self.movestore[0].grid(row=info2["row"], column=info2["column"])
                 self.movestore[1].grid(row=info1["row"], column=info1["column"])
                 if self.state[piece] == 0b0001 and self.state[square] == 0 and (
-                abs(piece[0] - square[0]), abs(piece[1] - square[1])) == (1, 1):
+                        abs(piece[0] - square[0]), abs(piece[1] - square[1])) == (1, 1):
                     self.buttonrayclone[square[0] + 1, square[1]].config(image=self.Boarddict["99"])
                     self.state[square[0] + 1, square[1]] = 0
                 if self.state[piece] == 0b1001 and self.state[square] == 0 and (
-                abs(piece[0] - square[0]), abs(piece[1] - square[1])) == (1, 1):
+                        abs(piece[0] - square[0]), abs(piece[1] - square[1])) == (1, 1):
                     self.buttonrayclone[square[0] - 1, square[1]].config(image=self.Boarddict["99"])
                     self.state[square[0] - 1, square[1]] = 0
                 if self.state[piece] & 0b0111 != 0b0001 and self.state[square] == 0:
@@ -366,7 +376,7 @@ class Board:
                 self.buttonrayclone[square] = store
                 if self.state[square] & 0b0111 == 0b0001 and (square[0] == 0 or square[0] == 7):
                     self.promote(square)
-            if self.turn%2 == 1 and self.fiftymove != 100 and self.threefold == False and not self.insufficient():
+            if self.turn % 2 == 1 and self.fiftymove != 100 and self.threefold == False and not self.insufficient():
                 self.movestore.clear()
                 self.automove()
             self.movestore.clear()
@@ -425,6 +435,9 @@ class Board:
             self.buttonrayclone[7, 3].config(bg="#A64A36", image=self.Boarddict["99"])
             self.buttonrayclone[7, 0].grid(row=7, column=3)
             self.buttonrayclone[7, 3].grid(row=7, column=0)
+            store = self.buttonrayclone[7, 0]
+            self.buttonrayclone[7, 0] = self.buttonrayclone[7, 3]
+            self.buttonrayclone[7, 3] = store
             self.state[7, 3] = 0b0010
             self.state[7, 0] = 0b0000
         if self.state[square] == 0b0110 and abs(piece[1] - square[1]) == 2 and square == (7, 6):
@@ -432,6 +445,9 @@ class Board:
             self.buttonrayclone[7, 5].config(bg="#FFBEB0", image=self.Boarddict["99"])
             self.buttonrayclone[7, 7].grid(row=7, column=5)
             self.buttonrayclone[7, 5].grid(row=7, column=7)
+            store = self.buttonrayclone[7, 7]
+            self.buttonrayclone[7, 7] = self.buttonrayclone[7, 5]
+            self.buttonrayclone[7, 5] = store
             self.state[7, 5] = 0b0010
             self.state[7, 7] = 0b0000
         if self.state[square] == 0b1110 and abs(piece[1] - square[1]) == 2 and square == (0, 2):
@@ -439,6 +455,9 @@ class Board:
             self.buttonrayclone[0, 3].config(bg="#FFBEB0", image=self.Boarddict["99"])
             self.buttonrayclone[0, 0].grid(row=0, column=3)
             self.buttonrayclone[0, 3].grid(row=0, column=0)
+            store = self.buttonrayclone[0, 0]
+            self.buttonrayclone[0, 0] = self.buttonrayclone[0, 3]
+            self.buttonrayclone[0, 3] = store
             self.state[0, 3] = 0b1010
             self.state[0, 0] = 0b0000
         if self.state[square] == 0b1110 and abs(piece[1] - square[1]) == 2 and square == (0, 6):
@@ -446,6 +465,9 @@ class Board:
             self.buttonrayclone[0, 5].config(bg="#A64A36", image=self.Boarddict["99"])
             self.buttonrayclone[0, 7].grid(row=0, column=5)
             self.buttonrayclone[0, 5].grid(row=0, column=7)
+            store = self.buttonrayclone[0, 7]
+            self.buttonrayclone[0, 7] = self.buttonrayclone[0, 5]
+            self.buttonrayclone[0, 5] = store
             self.state[0, 5] = 0b1010
             self.state[0, 7] = 0b0000
 
@@ -476,17 +498,17 @@ class Board:
         if square[0] == 7:
             self.state[7, square[1]] = 0b1101
             self.buttonrayclone[7, square[1]].config(image=self.Boarddict["03"])
-    
+
     def insufficient(self):
         for i in range(8):
             for j in range(8):
-                if self.state[i ,j] in {0b0001, 0b1001, 0b0010, 0b1010, 0b0101, 0b1101}:
+                if self.state[i, j] in {0b0001, 0b1001, 0b0010, 0b1010, 0b0101, 0b1101}:
                     return False
-                if self.state[i ,j] == 0b0100:
+                if self.state[i, j] == 0b0100:
                     self.whitebishop = True
                 else:
                     self.whitebishop = False
-                if self.state[i ,j] == 0b1100:
+                if self.state[i, j] == 0b1100:
                     self.blackbishop = True
                 else:
                     self.blackbishop = False
@@ -544,7 +566,7 @@ class Board:
             self.blacking[0] = square[0]
             self.blacking[1] = square[1]
         return x
-    
+
     def undomanual(self, piece, square, x):
         self.state[piece] = self.state[square]
         self.state[square] = x
@@ -559,7 +581,8 @@ class Board:
         moves = []
         for i in range(8):
             for j in range(8):
-                if self.state[i, j] != 0 and (self.state[i, j] > 8 and self.turn%2 == 1 or self.state[i, j] < 8 and self.turn%2 ==0):
+                if self.state[i, j] != 0 and (
+                        self.state[i, j] > 8 and self.turn % 2 == 1 or self.state[i, j] < 8 and self.turn % 2 == 0):
                     x = (self.legal_list(i, j, False), (i, j))
                     if x[0] != []:
                         moves.append(x)
@@ -569,31 +592,31 @@ class Board:
         flag = False
         mateflag = False
         for k in range(len(moves)):
-                for l in range(len(moves[k][0])):
-                    self.dummymove(moves[k][1], moves[k][0][l], False)
-                    if self.checkmate() == "Black wins":
-                        a = k 
-                        b = l
-                        mateflag = True
-                    self.turn += 1
-                    if self.in_check() and not mateflag:
+            for l in range(len(moves[k][0])):
+                self.dummymove(moves[k][1], moves[k][0][l], False)
+                if self.checkmate() == "Black wins":
+                    a = k
+                    b = l
+                    mateflag = True
+                self.turn += 1
+                if self.in_check() and not mateflag:
+                    a = k
+                    b = l
+                    flag = True
+                self.turn -= 1
+                if not flag and not mateflag:
+                    for i in range(8):
+                        for j in range(8):
+                            if self.state[i, j] != 0 and self.state[i, j] < 8 and self.state[i, j] != 0b0110:
+                                count += self.state[i, j]
+                    if k == 0 and l == 0:
+                        countstore = count
+                    if count < mincount:
+                        mincount = count
                         a = k
                         b = l
-                        flag = True
-                    self.turn -= 1
-                    if not flag and not mateflag:
-                        for i in range(8):
-                            for j in range(8):
-                                if self.state[i, j] != 0 and self.state[i, j] < 8 and self.state[i, j] != 0b0110:
-                                    count += self.state[i, j]
-                        if k == 0 and l == 0:
-                            countstore = count
-                        if count < mincount:
-                            mincount = count
-                            a = k
-                            b = l
-                    self.dummymove(moves[k][1], moves[k][0][l], True)
-                    count = 0
+                self.dummymove(moves[k][1], moves[k][0][l], True)
+                count = 0
         if mincount == countstore and not flag:
             rng = np.random.default_rng()
             a = rng.integers(low=0, high=len(moves))
@@ -605,5 +628,4 @@ class Board:
 game = Board()
 
 game.mainloop()
-        
 
