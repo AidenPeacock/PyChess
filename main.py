@@ -3,7 +3,8 @@ import tkinter as tk
 from functools import partial
 
 
-# TODO running the legal_list calculation once per turn and saving it as a global variable
+# TODO Fix King not being able to defend peices, check is somewhat broken, its because of dummy/manualmove
+# running the legal_list calculation once per turn and saving it as a global variable
 # underpromotion + graphic, graphic for game end, list of all legal moves in chess notation
 # to be able to see 2 cpus play eachother, it may be that i split up the class storing the board and the class drawing the board in tkinter
 class Board:
@@ -28,7 +29,7 @@ class Board:
         # 3 lists representing conditions for castling
         self.kingmove = [False, False]
         self.rook = [False, False, False, False]
-        self.emptysquare = [False, False, False, False, False, False, False, False, False, False]
+        self.emptysquare = [False, False, False, False, False, False, False, False, False, False, False, False]
         # en passant rule track
         self.enpassant = np.zeros((8, 8), dtype=int)
         self.fiftymove = 0
@@ -159,17 +160,17 @@ class Board:
             knight = True
             identity = [(1, 1), (1, 0), (0, 1), (1, -1), (-1, 1), (-1, 0), (0, -1), (-1, -1)]
             if not self.kingmove[1] and not self.rook[2] and self.emptysquare[5] and self.emptysquare[6] and \
-                    self.emptysquare[7]:
+                    self.emptysquare[7] and self.emptysquare[11]:
                 identity.append((0, -2))
-            if not self.kingmove[1] and not self.rook[3] and self.emptysquare[8] and self.emptysquare[9]:
+            if not self.kingmove[1] and not self.rook[3] and self.emptysquare[8] and self.emptysquare[9]and self.emptysquare[11]:
                 identity.append((0, 2))
         elif self.state[row, col] == 0b1110:  # Blackking
             knight = True
             identity = [(1, 1), (1, 0), (0, 1), (1, -1), (-1, 1), (-1, 0), (0, -1), (-1, -1)]
             if not self.kingmove[0] and not self.rook[0] and self.emptysquare[0] and self.emptysquare[1] and \
-                    self.emptysquare[2]:
+                    self.emptysquare[2] and self.emptysquare[10]:
                 identity.append((0, -2))
-            if not self.kingmove[0] and not self.rook[1] and self.emptysquare[3] and self.emptysquare[4]:
+            if not self.kingmove[0] and not self.rook[1] and self.emptysquare[3] and self.emptysquare[4] and self.emptysquare[10]:
                 identity.append((0, 2))
         elif self.state[row, col] == 0b0001:  # white pawn
             if row == 6:
@@ -283,17 +284,20 @@ class Board:
     def move(self, c):
         bname = self.buttonray[c]
         self.movestore.append(bname)
-        if len(self.movestore) == 1:
+        if len(self.movestore) == 1 and self.state[self.movestore[0].grid_info()["row"], self.movestore[0].grid_info()["column"]] == 0:
+            self.movestore.clear()
+        if len(self.movestore) == 1 and self.turn%2 == 0:
             info = bname.grid_info()
             self.possiblemoves = self.legal_list(info["row"], info["column"], False)
             for i in range(len(self.possiblemoves)):
                 self.buttonrayclone[self.possiblemoves[i]].config(bg="#FFFF00")
         if len(self.movestore) == 2:
-            for i in range(len(self.possiblemoves)):
-                if (self.possiblemoves[i][0]+self.possiblemoves[i][1]) % 2 == 0:
-                    self.buttonrayclone[self.possiblemoves[i]].config(bg="#FFBEB0")
-                else:
-                    self.buttonrayclone[self.possiblemoves[i]].config(bg="#A64A36")
+            if self.turn%2 == 0:
+                for i in range(len(self.possiblemoves)):
+                    if (self.possiblemoves[i][0]+self.possiblemoves[i][1]) % 2 == 0:
+                        self.buttonrayclone[self.possiblemoves[i]].config(bg="#FFBEB0")
+                    else:
+                        self.buttonrayclone[self.possiblemoves[i]].config(bg="#A64A36")
             self.possiblemoves = []
             info1 = self.movestore[0].grid_info()
             info2 = self.movestore[1].grid_info()
@@ -349,14 +353,12 @@ class Board:
                         const[i, j] = self.state[i, j]
                 self.boardstatehistory.append(const)
                 self.freemove.append(0)
-                if piece[0] == self.whiteking[0] and piece[1] == self.whiteking[1]:
-                    self.whiteking[0] = square[0]
-                    self.whiteking[1] = square[1]
+                if self.state[square] == 0b0110:
                     self.kingmove[1] = True
-                if piece[0] == self.blacking[0] and piece[1] == self.blacking[1]:
-                    self.blacking[0] = square[0]
-                    self.blacking[1] = square[1]
+                if self.state[square] == 0b1110:
                     self.kingmove[0] = True
+                self.whiteking = np.asarray(np.where(self.state == 6)).T[0].tolist()
+                self.blacking = np.asarray(np.where(self.state == 14)).T[0].tolist()
                 self.castle(piece, square)
                 for i in range(8):
                     self.enpassant[2, i] = 0
@@ -376,6 +378,7 @@ class Board:
                 self.buttonrayclone[square] = store
                 if self.state[square] & 0b0111 == 0b0001 and (square[0] == 0 or square[0] == 7):
                     self.promote(square)
+                print(self.whiteking, self.blacking)
             if self.turn % 2 == 1 and self.fiftymove != 100 and self.threefold == False and not self.insufficient():
                 self.movestore.clear()
                 self.automove()
@@ -430,6 +433,14 @@ class Board:
             self.emptysquare[9] = False
         else:
             self.emptysquare[9] = True
+        if self.in_check((0, 4)):
+            self.emptysquare[10] = False
+        else:
+            self.emptysquare[10] = True
+        if self.in_check((7, 4)):
+            self.emptysquare[11] = False
+        else:
+            self.emptysquare[11] = True
         if self.state[square] == 0b0110 and abs(piece[1] - square[1]) == 2 and square == (7, 2):
             self.buttonrayclone[7, 0].config(bg="#FFBEB0", image=self.Boarddict["70"])
             self.buttonrayclone[7, 3].config(bg="#A64A36", image=self.Boarddict["99"])
@@ -536,46 +547,30 @@ class Board:
                 self.takenpiece = self.state[square]
                 self.state[square] = self.state[piece]
                 self.state[piece] = 0
-                if piece[0] == self.whiteking[0] and piece[1] == self.whiteking[1]:
-                    self.whiteking[0] = square[0]
-                    self.whiteking[1] = square[1]
-                if piece[0] == self.blacking[0] and piece[1] == self.blacking[1]:
-                    self.blacking[0] = square[0]
-                    self.blacking[1] = square[1]
+                self.whiteking = np.asarray(np.where(self.state == 6)).T[0].tolist()
+                self.blacking = np.asarray(np.where(self.state == 14)).T[0].tolist()
             else:
                 self.latch = 1
 
         elif self.latch == 0:
             self.state[piece] = self.state[square]
             self.state[square] = self.takenpiece
-            if square[0] == self.whiteking[0] and square[1] == self.whiteking[1]:
-                self.whiteking[0] = piece[0]
-                self.whiteking[1] = piece[1]
-            if square[0] == self.blacking[0] and square[1] == self.blacking[1]:
-                self.blacking[0] = piece[0]
-                self.blacking[1] = piece[1]
+            self.whiteking = np.asarray(np.where(self.state == 6)).T[0].tolist()
+            self.blacking = np.asarray(np.where(self.state == 14)).T[0].tolist()
 
     def manualmove(self, piece, square):
         x = self.state[square]
         self.state[square] = self.state[piece]
         self.state[piece] = 0
-        if piece[0] == self.whiteking[0] and piece[1] == self.whiteking[1]:
-            self.whiteking[0] = square[0]
-            self.whiteking[1] = square[1]
-        if piece[0] == self.blacking[0] and piece[1] == self.blacking[1]:
-            self.blacking[0] = square[0]
-            self.blacking[1] = square[1]
+        self.whiteking = np.asarray(np.where(self.state == 6)).T[0].tolist()
+        self.blacking = np.asarray(np.where(self.state == 14)).T[0].tolist()
         return x
 
     def undomanual(self, piece, square, x):
         self.state[piece] = self.state[square]
         self.state[square] = x
-        if square[0] == self.whiteking[0] and square[1] == self.whiteking[1]:
-            self.whiteking[0] = piece[0]
-            self.whiteking[1] = piece[1]
-        if square[0] == self.blacking[0] and square[1] == self.blacking[1]:
-            self.blacking[0] = piece[0]
-            self.blacking[1] = piece[1]
+        self.whiteking = np.asarray(np.where(self.state == 6)).T[0].tolist()
+        self.blacking = np.asarray(np.where(self.state == 14)).T[0].tolist()
 
     def automove(self):
         moves = []
